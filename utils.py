@@ -4,26 +4,16 @@ import requests
 import time
 from git import Repo
 import json,csv
+import json
 
+def read_json(file_path):
+    with open(file_path, 'r') as f:
+        return json.load(f)
 access_token = ""
 # 添加访问凭证到请求头部
 headers = {"Authorization": f"Bearer {access_token}"}
 
-"""
-Read json file 
-input: json file
-output: json data
-"""
-def read_json(json_file):
-    with open(json_file, 'r') as f:
-        data = json.load(f)
-    return data
 
-"""
-Read csv file by column
-input: csv file, column
-output: column data
-"""
 def read_first_column(csv_file, column):
     # first_column = []
     first_column = set()
@@ -35,11 +25,6 @@ def read_first_column(csv_file, column):
 
     return first_column
 
-"""
-Get top repositories by language from github
-input: language, per_page, total_repos
-output: top_repos
-"""
 def get_top_java_repos(language="Java", per_page=100, total_repos=1000):
     top_repos = []
     page = 1
@@ -59,7 +44,7 @@ def get_top_java_repos(language="Java", per_page=100, total_repos=1000):
             "per_page": per_page,
             "page": page
         }
-        
+
         response = requests.get(base_url, headers=headers, params=params)
         time.sleep(wait_time)
         # 检查速率限制
@@ -80,15 +65,11 @@ def get_top_java_repos(language="Java", per_page=100, total_repos=1000):
         page += 1
 
     return top_repos[:total_repos]
-
-
-"""
-Filter repos from a list of repositories
-input: repos, tool_keywords(saved keywords), tutorial_keywords(filter keywords)
-output: filtered_repos
-"""
-def filter_java_tools(repos, tool_keywords, tutorial_keywords):
-
+def filter_java_tools(repos):
+    # 定义工具项目关键词和教程排除关键词
+    tool_keywords = ["tool", "library", "framework", "sdk", "api", "plugin", "module"]
+    tutorial_keywords = ["tutorial", "example", "learn", "guide", "demo", "sample", "practice",
+                         "学习", "指南", "面试", "教程", "示例", "练习", "实例", "样例", "范例"]
 
     filtered_repos = []
     for repo in repos:
@@ -102,12 +83,13 @@ def filter_java_tools(repos, tool_keywords, tutorial_keywords):
         is_tutorial = any(keyword in description for keyword in tutorial_keywords)
 
         # 仅在是工具类项目且非教程类项目时保留
-        if is_tool and not is_tutorial:
+        # if is_tool and not is_tutorial:
+        # 非教程类项目时保留
+        if not is_tutorial:
             filtered_repos.append(repo)
     
     return filtered_repos
 
-""""""
 def clone_github_repo(github_url, target_dir):
     # 如果目标目录不存在，则创建目录
     if not os.path.exists(target_dir):
@@ -122,9 +104,12 @@ def clone_github_repo(github_url, target_dir):
         
 
 
-def get_bug_fix_commits(repo_path, keywords):
+def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
     repo = Repo(repo_path)
-    repo_name = repo_path.split("/")[-1]  # 提取仓库名称
+    remote_url = repo.remotes.origin.url
+
+    repo_name = remote_url.split("/")[-1]  # 提取仓库名称
+    owner_name = remote_url.split("/")[-2]  # 提取所有者
     matched_commits = []
 
     if repo.bare:
@@ -133,19 +118,26 @@ def get_bug_fix_commits(repo_path, keywords):
 
     for commit in repo.iter_commits():
         commit_message = commit.message.lower()
-        matched_keywords = [kw for kw in keywords if kw in commit_message]
+        matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
+        # matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
         # if commit.hexsha != '05d12682a39c9df36595cef86fdaf35d10103909':
         #     continue
         # print(commit.hexsha)
         # print(commit_message)
         # 如果有关键词匹配到当前提交消息
         if matched_keywords:
+            cwe_list = []
+            if word2cwe is not None:
+                for matched_keyword in matched_keywords:
+                    cwe_list.append(word2cwe[matched_keyword])
             matched_commits.append({
                 "repo_name": repo_name,
+                "owner_name": owner_name,
                 "commit_hash": commit.hexsha,
                 "datetime": commit.authored_datetime.isoformat(),
                 "commit_message": commit_message,
-                "keywords": matched_keywords
+                "keywords": matched_keywords,
+                "cwe": cwe_list
             })
 
     return matched_commits
