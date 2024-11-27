@@ -125,11 +125,36 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
         # print(commit.hexsha)
         # print(commit_message)
         # 如果有关键词匹配到当前提交消息
+        
+
+
         if matched_keywords:
             cwe_list = []
             if word2cwe is not None:
                 for matched_keyword in matched_keywords:
                     cwe_list.append(word2cwe[matched_keyword])
+                    
+            # 统计修改的文件和 hunk 信息
+            modified_files = []
+            total_hunks = 0
+
+            # 获取父提交（diff 需要和父提交比较）
+            parents = commit.parents
+            if parents:
+                parent_commit = parents[0]
+                diff_index = commit.diff(parent_commit, create_patch=True)
+                # print(f"diff_index {diff_index}")
+                for diff in diff_index:
+                    # print(f"diff content {diff}")
+                    if diff.a_path:  # 获取修改的文件路径
+                        modified_files.append(diff.a_path)
+                    # print(f"diff.diff {diff.diff}")
+                    # 统计 hunk 数量
+                    if diff.diff:  # diff.diff 是字节流
+                        hunks = diff.diff.decode('utf-8', errors='ignore').count('@@')  # 每个 hunk 以 @@ 开始
+                        total_hunks += hunks
+                        
+                        
             matched_commits.append({
                 "repo_name": repo_name,
                 "owner_name": owner_name,
@@ -137,7 +162,10 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
                 "datetime": commit.authored_datetime.isoformat(),
                 "commit_message": commit_message,
                 "keywords": matched_keywords,
-                "cwe": cwe_list
+                "cwe": cwe_list,
+                "modified_files": modified_files,  # 修改的文件列表
+                "total_hunks": total_hunks//2,  # hunk 的总数量
+                "total_files": len(modified_files)  # 修改的文件数量
             })
 
     return matched_commits
