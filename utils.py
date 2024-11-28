@@ -118,8 +118,8 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
 
     for commit in repo.iter_commits():
         commit_message = commit.message.lower()
-        matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
-        # matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
+        # matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
+        matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
         # if commit.hexsha != '05d12682a39c9df36595cef86fdaf35d10103909':
         #     continue
         # print(commit.hexsha)
@@ -137,7 +137,7 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
             # 统计修改的文件和 hunk 信息
             modified_files = []
             total_hunks = 0
-
+            diff_content = ""
             # 获取父提交（diff 需要和父提交比较）
             parents = commit.parents
             if parents:
@@ -153,6 +153,7 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
                     if diff.diff:  # diff.diff 是字节流
                         hunks = diff.diff.decode('utf-8', errors='ignore').count('@@')  # 每个 hunk 以 @@ 开始
                         total_hunks += hunks
+                        diff_content = diff.diff.decode('utf-8', errors='ignore')
                         
                         
             matched_commits.append({
@@ -163,8 +164,9 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
                 "commit_message": commit_message,
                 "keywords": matched_keywords,
                 "cwe": cwe_list,
-                "modified_files": modified_files,  # 修改的文件列表
-                "total_hunks": total_hunks//2,  # hunk 的总数量
+                "diff":diff_content,
+                "modified_files": modified_files,   # 修改的文件列表
+                "total_hunks": total_hunks//2,      # hunk 的总数量
                 "total_files": len(modified_files)  # 修改的文件数量
             })
 
@@ -269,3 +271,74 @@ if __name__ == '__main__':
         print(f"The CWE ID for {cve_id} is: {cwe_id}")
     else:
         print(f"Could not retrieve CWE ID for {cve_id}.")
+        
+        
+import re
+
+def convert_to_target_format(diff_text):
+    """
+    Convert a standard diff format to the target custom format.
+
+    Args:
+    - diff_text (str): The standard diff format.
+
+    Returns:
+    - str: The converted target format.
+    """
+    lines = diff_text.splitlines()
+    target_format = []
+    current_file_a = None
+    current_file_b = None
+    code_lines = []
+
+    # Patterns to extract file headers and modifications
+    file_a_pattern = re.compile(r"^--- a/(.+)")
+    file_b_pattern = re.compile(r"^\+\+\+ b/(.+)")
+    context_pattern = re.compile(r"@@.*@@")
+    
+    for line in lines:
+        if file_a_match := file_a_pattern.match(line):
+            current_file_a = file_a_match.group(1).replace("/", " / ")
+        elif file_b_match := file_b_pattern.match(line):
+            current_file_b = file_b_match.group(1).replace("/", " / ")
+        elif context_pattern.match(line):
+            # Ignore the context line starting with @@
+            continue
+        elif line.startswith("-") or line.startswith("+") or line.strip():
+            # Collect relevant code changes
+            if line.startswith("-"):
+                code_lines.append(f"- {line[1:].strip()}")  # Remove the `-` marker
+            elif line.startswith("+"):
+                code_lines.append(f"+ {line[1:].strip()}")  # Prefix with `+`
+            else:
+                code_lines.append(line.strip())  # For unchanged lines
+    
+    # Build the target format output
+    if current_file_a and current_file_b:
+        target_format.append(f"mmm a / {current_file_a} <nl>")
+        target_format.append(f"ppp b / {current_file_b} <nl>")
+    
+    for code_line in code_lines:
+        target_format.append(f"{code_line} <nl>")
+    
+    # Join the lines with space for final result
+    return " ".join(target_format)
+
+# Example input
+# diff_text = """--- a/src/main/java/org/apache/ibatis/mapping/CacheBuilder.java
+# +++ b/src/main/java/org/apache/ibatis/mapping/CacheBuilder.java
+# @@ -100,7 +100,9 @@ public Cache build() {
+#      setCacheProperties(cache);
+#    }
+#    cache = setStandardDecorators(cache);
+# +  } else if (!LoggingCache.class.isAssignableFrom(cache.getClass())) {
+# +    cache = new LoggingCache(cache);
+#    }
+#    return cache;
+#  }
+# """
+
+# # Convert the diff to the target format
+# converted_text = convert_to_target_format(diff_text)
+# print(converted_text)
+
