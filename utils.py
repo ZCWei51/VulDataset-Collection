@@ -102,7 +102,10 @@ def clone_github_repo(github_url, target_dir):
     except subprocess.CalledProcessError as e:
         print(f"Failed to clone repository: {e}")
         
-
+def contains_chinese(string):
+    # 使用正则表达式匹配中文字符的范围
+    chinese_char_pattern = re.compile(r'[\u4e00-\u9fff]')
+    return bool(chinese_char_pattern.search(string))
 
 def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
     repo = Repo(repo_path)
@@ -118,6 +121,8 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
 
     for commit in repo.iter_commits():
         commit_message = commit.message.lower()
+        if contains_chinese(commit_message):
+            continue
         # matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
         matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
         # if commit.hexsha != '05d12682a39c9df36595cef86fdaf35d10103909':
@@ -155,7 +160,8 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
                         total_hunks += hunks
                         diff_content = diff.diff.decode('utf-8', errors='ignore')
                         
-                        
+            if contains_chinese(diff_content):
+                continue       
             matched_commits.append({
                 "repo_name": repo_name,
                 "owner_name": owner_name,

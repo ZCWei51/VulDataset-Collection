@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from utils import *
 from tqdm import tqdm
 from collections import Counter
+import re
+
 def get_java_repos():
     total_repos = 1000
     per_page = 100
@@ -79,7 +81,7 @@ def get_matched_commit():
         except Exception as e:
             print(f"Error happened in {repo}: {e}")
             continue
-    with open(f'matched_commits_cwe_1019repos.json', 'w') as f:
+    with open(f'matched_commits_cwe_1019repos_no_chinese.json', 'w') as f:
         json.dump(matched_commits, f, indent=4)
         
     print(f"Found {len(matched_commits)} matched commits in total.")
@@ -147,11 +149,19 @@ def count_meta_info(json_path):
         
     cnt = Counter(type)
     print(cnt)
+    
+#  todo add check chinese in message
+
+
+
+
+
+
 if __name__ == '__main__':
     # get_java_repos()
     # repos_file_path = "/home/sub3-wm/wzc/crawl/java_data/added_java_repos.json"
     # clone_repos(repos_file_path)
-    # get_matched_commit()
+    get_matched_commit()
     
     # total_repos = 1000 
     # with open(f"./top_repo/top_java_repos_{total_repos}.json", 'r') as f:
@@ -171,3 +181,6 @@ if __name__ == '__main__':
     
     
     # count_meta_info("/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_filtered_file_1.json")
+    # 示例
+    # print(contains_chinese("Hello, 世界"))  # True
+    # print(contains_chinese("Hello, World"))  # False
