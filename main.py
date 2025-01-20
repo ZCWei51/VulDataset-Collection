@@ -116,12 +116,12 @@ def count_meta_data(json_path):
             cnt_1_10 += cnt[c]
         if c > 10:
             cnt_10 += cnt[c]
-            
+    print(cnt)        
     print(f"java file nums <= 10: {cnt_1_10}")
     print(f"java file nums > 10: {cnt_10}")
     
-    with open(f'matched_commits_cwe_1019repos_filtered_file_1.json', 'w') as f:
-        json.dump(save_data, f, indent=4)
+    # with open(f'matched_commits_cwe_1019repos_filtered_english_filtered_file_1.json', 'w') as f:
+    #     json.dump(save_data, f, indent=4)
             
 
 def change_format_diff_to_target(json_path):
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     # get_java_repos()
     # repos_file_path = "/home/sub3-wm/wzc/crawl/java_data/added_java_repos.json"
     # clone_repos(repos_file_path)
-    get_matched_commit()
+    # get_matched_commit()
     
     # total_repos = 1000 
     # with open(f"./top_repo/top_java_repos_{total_repos}.json", 'r') as f:
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     # for repo in filtered_java_tools:
     #     print(f"Name: {repo['name']}, URL: {repo['html_url']}")
     
-    # count_meta_data("/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos.json")
+    count_meta_data("/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_no_chinese.json")
     
     # json_path = "/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_filtered_file_1.json"
     # change_format_diff_to_target(json_path)
