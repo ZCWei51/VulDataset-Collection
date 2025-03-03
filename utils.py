@@ -25,6 +25,136 @@ def read_first_column(csv_file, column):
 
     return first_column
 
+def get_top_java_repos_(language="Java", total_repos=5000, current_year=2025):
+    collected_repos = []
+    base_url = "https://api.github.com/search/repositories"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    # current_year = datetime.now().year
+    start_year = max(current_year - 10, 2008)  # 限制最早年份
+    wait_time = 30  # 初始等待时间
+    
+    # 时间分片：近15年数据
+    for year in range(current_year, start_year - 1, -1):
+        # 动态生成结束日期
+        if year == current_year:
+            end_date = datetime.now().strftime("%Y-%m-%d")
+        else:
+            end_date = f"{year}-12-31"
+        
+        time_range = f"created:{year}-01-01..{end_date}"
+        stars_ranges = [
+            ("stars:>=10000", None),
+            ("stars:5000..9999", 10000),
+            ("stars:4000..4999", 5000),
+            ("stars:3000..3999", 4000),
+            # ("stars:2000..2999", 3000),
+            # ("stars:1000..1999", 2000),
+            # ("stars:900..999", 1000),
+            # ("stars:800..899", 900),
+            # ("stars:700..799", 800),
+            # ("stars:600..699", 700),
+            # ("stars:500..599", 600),
+            # ("stars:400..499", 500),
+            # ("stars:300..399", 400),
+            # ("stars:200..299", 300),
+            # ("stars:100..199", 200),
+            # ("stars:50..100", 100)
+        ]
+        
+        def generate_star_ranges(min_star=100, max_star=1000, step=100):
+            """动态生成星数分段，支持自定义间隔
+            Args:
+                min_star: 最低星数段的下界 (默认100)
+                max_star: 最高星数段的上界 (默认1000)
+                step: 星数间隔 (默认100)
+            Returns:
+                List[Tuple]: 生成的星数范围列表
+            """
+            ranges = []
+            current = max_star
+            
+            # 动态生成指定区间段（默认100-1000）
+            while current >= min_star + step:
+                lower = current - step + 1
+                upper = current
+                ranges.append(
+                    (f"stars:{lower}..{upper}", current + 1)
+                )
+                current -= step
+            
+            # 添加兜底段（包含剩余星数）
+            ranges.append(
+                (f"stars:>={min_star}", min_star + step)
+            )
+            
+            return ranges
+        # 生成star 范围
+        # 1000-2000 step 200
+        stars_ranges.extend(generate_star_ranges(1000,3000,200))
+        # 100-1000 step 10
+        stars_ranges.extend(generate_star_ranges(100,1000,10))
+        
+        # print(f"stars_ranges: {stars_ranges}")
+        # continue
+        # Stars 分片
+        for stars_query, upper_bound in stars_ranges:
+            page = 1
+            max_pages = 10  # GitHub 限制
+            
+            while page <= max_pages:
+                query = f"language:{language} {time_range} {stars_query}"
+                params = {
+                    "q": query,
+                    "sort": "stars",
+                    "order": "desc",
+                    "per_page": 100,
+                    "page": page
+                }
+                
+                # 带重试机制的请求
+                for _ in range(3):  # 最大重试3次
+                    response = requests.get(base_url, headers=headers, params=params)
+                    if response.status_code == 403:
+                        reset_time = int(response.headers.get('X-RateLimit-Reset', time.time() + 60))
+                        sleep_duration = max(reset_time - time.time(), 60)
+                        print(f"Rate limit hit. Sleeping for {sleep_duration} seconds")
+                        time.sleep(sleep_duration)
+                        continue
+                    break
+                
+                response.raise_for_status()
+                data = response.json()
+                repos = data.get("items", [])
+                
+                # 过滤低星仓库
+                if repos and upper_bound:
+                    repos = [r for r in repos if r['stargazers_count'] < upper_bound]
+                
+                if not repos:
+                    break
+                
+                # 去重处理
+                new_repos = [
+                    r for r in repos 
+                    if r['id'] not in {x['id'] for x in collected_repos}
+                ]
+                collected_repos.extend(new_repos)
+                
+                # 进度控制
+                print(f"Year: {year}, Stars: {stars_query}, Page: {page} | Total collected: {len(collected_repos)}")
+                if len(collected_repos) >= total_repos:
+                    return sorted(collected_repos, key=lambda x: -x['stargazers_count'])[:total_repos]
+                
+                page += 1
+                time.sleep(wait_time)  # 基础间隔防止触发限制
+        # save by year
+        with open(f"tmp_top_java_repos_{year}.json", 'w') as f:
+            json.dump(collected_repos, f, indent=4)
+    # 最终排序截取
+    final_repos = sorted(collected_repos, key=lambda x: -x['stargazers_count'])
+    return final_repos[:total_repos]
+
+
 def get_top_java_repos(language="Java", per_page=100, total_repos=1000):
     top_repos = []
     page = 1
@@ -124,7 +254,8 @@ def get_bug_fix_commits(repo_path, keywords, word2cwe=None):
         if contains_chinese(commit_message):
             continue
         # matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
-        matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
+        # matched_keywords = [kw for kw in keywords if commit_message.lower().startswith(kw)]
+        matched_keywords = [kw for kw in keywords if kw in commit_message.lower()]
         # if commit.hexsha != '05d12682a39c9df36595cef86fdaf35d10103909':
         #     continue
         # print(commit.hexsha)

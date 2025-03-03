@@ -10,13 +10,15 @@ from collections import Counter
 import re
 
 def get_java_repos():
-    total_repos = 1000
+    total_repos = 5000000
     per_page = 100
-    top_java_repos = get_top_java_repos(language="Java", per_page=per_page, total_repos=total_repos)
-    with open(f"top_java_repos_{total_repos}.json", 'w') as f:
+    current_year = 2022
+    # top_java_repos = get_top_java_repos(language="Java", per_page=per_page, total_repos=total_repos)
+    top_java_repos = get_top_java_repos_(language="Java", total_repos=total_repos, current_year=current_year)
+   with open(f"top_java_repos_{total_repos}_year_{current_year}.json", 'w') as f:
         json.dump(top_java_repos, f, indent=4)
     filtered_java_tools = filter_java_tools(top_java_repos)
-    with open(f"filter_top_java_repos_{total_repos}.json", 'w') as f:
+    with open(f"filter_top_java_repos_{total_repos}_year_{current_year}.json", 'w') as f:
         json.dump(filtered_java_tools, f, indent=4)
         
     for repo in filtered_java_tools:
@@ -66,7 +68,8 @@ def get_matched_commit():
     # keywords = ["fix", "bug", "vulnerable", "patch", "error", "issue"]
     # keywords, word2cwe = read_key_words("/home/sub3-wm/wzc/crawl/java_data/word2cwe.json")
     # keywords, word2cwe = read_key_words("/home/sub3-wm/wzc/crawl/java_data/cxy_word2cwe.json")
-    keywords = ['feat:', 'fix:', 'perf:', 'refactor:', 'style:', 'test:' ]
+    # keywords = ['feat:', 'fix:', 'perf:', 'refactor:', 'style:', 'test:' ]
+    keywords = ['feat', 'fix', 'perf', 'refactor', 'style', 'test' ]
     word2cwe = None
     print(keywords)
     print(word2cwe)
@@ -81,7 +84,7 @@ def get_matched_commit():
         except Exception as e:
             print(f"Error happened in {repo}: {e}")
             continue
-    with open(f'matched_commits_cwe_1019repos_no_chinese.json', 'w') as f:
+    with open(f'matched_commits_cwe_1019repos_no_chinese_1-20.json', 'w') as f:
         json.dump(matched_commits, f, indent=4)
         
     print(f"Found {len(matched_commits)} matched commits in total.")
@@ -158,7 +161,7 @@ def count_meta_info(json_path):
 
 
 if __name__ == '__main__':
-    # get_java_repos()
+    get_java_repos()
     # repos_file_path = "/home/sub3-wm/wzc/crawl/java_data/added_java_repos.json"
     # clone_repos(repos_file_path)
     # get_matched_commit()
@@ -174,7 +177,7 @@ if __name__ == '__main__':
     # for repo in filtered_java_tools:
     #     print(f"Name: {repo['name']}, URL: {repo['html_url']}")
     
-    count_meta_data("/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_no_chinese.json")
+    # count_meta_data("/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_no_chinese.json")
     
     # json_path = "/home/sub3-wm/wzc/crawl/VulDataset-Collection/matched_commits_cwe_1019repos_filtered_file_1.json"
     # change_format_diff_to_target(json_path)
